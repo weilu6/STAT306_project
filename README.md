@@ -1,6 +1,11 @@
 # STAT306_project
 
-possible data sets:
+data source and proposal is updated;
 
--   <https://www.kaggle.com/datasets/nikhil7280/student-performance-multiple-linear-regression/data>
--   <https://www.kaggle.com/datasets/valakhorasani/tehran-house-prices-dataset/data>
+please complete the responsibility part to specify your rough job.
+
+Just in case that you have technical issues, I also provide a google doc:
+
+https://docs.google.com/document/d/1TSFVPq9w9Mzzf4TVmjAvS7o3tFEdjDIowL27wFlYXNw/edit?usp=sharing
+
+Ideally, view the data ahead of time.
