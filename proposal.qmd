@@ -41,3 +41,4 @@ Our statistical model could be used to evaluate the value of used cars, and poss
 #### Member responsibilities
 
 -   Wei Lu: part of exploratory analysis; part of statistical analysis
+-   Joyce Cao: introduction; visualizations and summary of key findings in exploratory analysis
