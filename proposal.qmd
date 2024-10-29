@@ -16,7 +16,7 @@ editor: visual
 This dataset is about the information of used cars from CarDekho (<https://www.cardekho.com/>) collected by its creators. The dataset is provided on Kaggle \[above link\] on June 26,2020.
 
 | Variables     | Type        | Descriptions                                                            |
-|------------|----------|--------------------------------------------------|
+|---------------|-------------|-------------------------------------------------------------------------|
 | name          | categorical | the name of the car; start with brand name which is a possible factor   |
 | year          | continuous  | the year of the car when it was bought (in years)                       |
 | selling_price | continuous  | the price of car when it was sold (in Indian Rupee (INR))               |
