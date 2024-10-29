@@ -1,0 +1,43 @@
+---
+format: 
+  pdf:
+    fontsize: 11pt
+editor: visual
+---
+
+### STAT 306 proposal
+
+#### Data resource:
+
+<https://www.kaggle.com/datasets/nehalbirla/vehicle-dataset-from-cardekho/data>
+
+#### Descriptions of variables
+
+This dataset is about the information of used cars from CarDekho (<https://www.cardekho.com/>) collected by its creators. The dataset is provided on Kaggle \[above link\] on June 26,2020.
+
+| Variables     | Type        | Descriptions                                                            |
+|------------|----------|--------------------------------------------------|
+| name          | categorical | the name of the car; start with brand name which is a possible factor   |
+| year          | continuous  | the year of the car when it was bought (in years)                       |
+| selling_price | continuous  | the price of car when it was sold (in Indian Rupee (INR))               |
+| km_driven     | continuous  | the distance that the car is driven (in kilometers)                     |
+| fuel          | categorical | the fuel type of the car; 5 levels (CNG/Diesel/Electric/LPG/Petrol)     |
+| seller_type   | categorical | the type of the seller; 3 levels (Dealer, Individual, Trustmark Dealer) |
+| transimission | categorical | the type of gear transmission; 2 levels (Manual, Automatic)             |
+| owner         | categorical | the number of previous owners; 5 levels                                 |
+
+#### Motivations
+
+CarDekho.com is a car trading platform from India. Buyers are able to search their preferred cars based on their needs on this website. For sellers, this is a useful website to find potential customers. We are curious about the relationships between the selling price and traits of the used cars, so we're going to build a statistical model to explore the following **questions**:
+
+-   Is there linear relationship between the selling price and the driven distance of the cars?
+
+-   What categorical variables associate with the selling price and how do they associate?
+
+-   What regression model will be interpretable and also explain the data well?
+
+Our statistical model could be used to evaluate the value of used cars, and possibly contribute to the car trading market.
+
+#### Member responsibilities
+
+-   Wei Lu: part of exploratory analysis; part of statistical analysis
