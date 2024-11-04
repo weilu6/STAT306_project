@@ -43,3 +43,4 @@ Our statistical model could be used to evaluate the value of used cars, and poss
 -   Wei Lu: part of exploratory analysis; part of statistical analysis
 -   Joyce Cao: introduction; visualizations and summary of key findings in exploratory analysis
 -   David Dominguez: part of exploratory analysis, application of selected methodology, analysis of findings  
+-   Hrishi Logani: part of summary of key findings in exploratory analysis and part of results and discussion 
