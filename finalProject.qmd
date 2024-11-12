@@ -1,0 +1,26 @@
+# STAT306 project
+
+## 1. Introduction
+
+## 2. Exploratory Analysis
+
+TODO
+
+-   add a new column "brand", based on the name of cars
+
+```{=html}
+<!-- -->
+```
+-   scatter plots (by categories)
+
+-   boxplots
+
+-   possible log transformation (if highly right-skewed)
+
+-   check multicolinearity (using VIF)
+
+### 
+
+## 3. Statistical Analysis
+
+## 4. Discussion
