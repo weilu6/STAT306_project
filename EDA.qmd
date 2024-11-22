@@ -1,0 +1,49 @@
+---
+title: "Exploratory Data Analysis"
+format: html
+editor: visual
+---
+
+## Exploratory Data Analysis
+
+First we'll run the necessary libraries for the visualizations
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+```
+
+## Import Dataset
+
+This dataset is about the information of used cars from CarDekho (<https://www.cardekho.com/>) collected by its creators. The dataset is provided on Kaggle \[above link\] on June 26,2020.
+
+```{r message=FALSE, warning=FALSE}
+car_df <- read_csv("CAR_DEKHO.csv")
+head(car_df)
+```
+
+## Exploratory Analysis
+
+### Summary Statistics
+
+```{r}
+summary(car_df)
+```
+
+-   Most of our variables are categorical
+
+-   For our continuous variables there seem to be a large amount for variance (except for year) which could possibly suggest the presence of outliers.
+
+-   
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+### Visualizations
