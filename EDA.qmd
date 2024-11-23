@@ -8,7 +8,7 @@ editor: visual
 
 First we'll run the necessary libraries for the visualizations
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(dplyr)
 library(ggplot2)
 library(tidyr)
@@ -34,16 +34,14 @@ summary(car_df)
 
 -   Most of our variables are categorical
 
--   For our continuous variables there seem to be a large amount for variance (except for year) which could possibly suggest the presence of outliers.
+-   For our continuous variables there seem to be a large amount of variance (except for year) which could possibly suggest the presence of outliers.
 
--   
-
-```{r}
-
-```
+-   Have values for 1992 to 2024
 
 ```{r}
-
+lapply(car_df[c("fuel", "transmission", "owner")], unique)
 ```
+
+-   5 categories for Fuel, 2 for Transmission and 5 for Owner
 
 ### Visualizations
