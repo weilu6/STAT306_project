@@ -31,25 +31,260 @@ The following is a description of the variables found in the dataset:
 | transmission  | categorical | the type of gear transmission; 2 levels (Manual, Automatic)             |
 | owner         | categorical | the number of previous owners; 5 levels                                 |
 
-By setting selling_price as our response, we have a total of 5 categorical variables and 2 continuous variables. 
+By setting selling_price as our response, we have a total of 5 categorical variables and 2 continuous variables.
 
 ## 2. Exploratory Analysis
 
-TODO
+First we'll run the necessary libraries for the visualizations
 
--   add a new column "brand", based on the name of cars
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+library(corrplot)
+```
 
-<!-- -->
+### Import Dataset
 
--   scatter plots (by categories)
+This dataset is about the information of used cars from CarDekho (<https://www.cardekho.com/>) collected by its creators. The dataset is provided on Kaggle \[above link\] on June 26,2020.
 
--   boxplots
+```{r message=FALSE, warning=FALSE}
+car_df <- read_csv("CAR_DEKHO.csv")
+head(car_df)
+```
 
--   possible log transformation (if highly right-skewed)
+### Summary Statistics
 
--   check multicolinearity (using VIF)
+```{r message=FALSE, warning=FALSE}
+str(car_df) 
+```
 
-### 
+-   We count with 5 character and 3 numerical variables
+
+```{r}
+summary(car_df)
+```
+
+-   Most of our variables are categorical
+
+-   For our continuous variables there seem to be a large amount of variance (except for year) which could possibly suggest the presence of outliers.
+
+-   Have values for 1992 to 2024
+
+```{r}
+lapply(car_df[c("fuel", "transmission", "owner")], unique)
+```
+
+-   5 categories for Fuel, 2 for Transmission and 5 for Owner
+
+### Missing Values
+
+```{r}
+colSums(is.na(car_df))  
+sum(is.na(car_df))    
+```
+
+-   No missing values so that means we are not going to need to perform transformations
+
+### Data preprocessing
+
+```{r}
+car_df_brand <- separate(car_df, col = name, sep = " ",into = "brand")
+head(car_df_brand)
+```
+
+-   split the name column into a brand column, which is a possible factor.
+
+### Visualizations
+
+```{r}
+# Plot for 'year'
+ggplot(car_df, aes(x = year)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "white") +
+  labs(title = "Distribution of Year", x = "Year", y = "Count") +
+  theme_minimal()
+
+# Plot for 'selling_price'
+ggplot(car_df, aes(x = selling_price)) +
+  geom_histogram(binwidth = 50000, fill = "green", color = "white") +
+  labs(title = "Distribution of Selling Price", x = "Selling Price (in currency units)", y = "Count") +
+  theme_minimal()
+
+# Plot for 'km_driven'
+ggplot(car_df, aes(x = km_driven)) +
+  geom_histogram(binwidth = 10000, fill = "purple", color = "white") +
+  labs(title = "Distribution of KM Driven", x = "Kilometers Driven", y = "Count") +
+  theme_minimal()
+```
+
+-   We don't seem to count with normal distributions for neither of the 3 variables
+
+-   Year seems to have a left skew distribution
+
+-   Selling Price and KM Driven show a right-skewed distribution, probably hinting on outliers for high values
+
+```{r}
+car_df$owner <- factor(car_df$owner, 
+                       levels = c("First Owner", 
+                                  "Second Owner", 
+                                  "Third Owner", 
+                                  "Fourth & Above Owner", 
+                                  "Test Drive Car"))
+
+# Bar plot with the specified order
+ggplot(car_df, aes(x = owner)) +
+  geom_bar(fill = "steelblue", color = "black") +
+  labs(title = "Distribution of Owner Variable",
+       x = "Owner",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),  # Smaller and angled text
+        plot.title = element_text(size = 14))
+```
+
+```{r}
+summary(factor(car_df$owner))
+```
+
+-   The distribution for the owner variable shows a intuitive pattern where most of the cars offered have just one owner, and then the proportion decreases by almost half for each new owner that has had the vehicle.
+
+```{r}
+# Box plot for selling price by owner
+ggplot(car_df, aes(x = owner, y = selling_price, fill = owner)) +
+  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Box Plot of Selling Price by owners", 
+       x = "Owner", 
+       y = "Selling Price (in currency units)") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+-   Outliers seem to be making hard the interpretation for difference in selling price depending on the type of owners
+
+-   we still observe that cars with less previous owners have higher selling prices.
+
+```{r}
+# Box plot for selling price by brand
+ggplot(car_df_brand, aes(x = brand, y = selling_price, fill = brand)) +
+  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Box Plot of Selling Price by brands", 
+       x = "brand", 
+       y = "Selling Price (in currency units)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+-   There is difference in selling prices among different brands, specifically, Audi, BMW, Land Rover, Benz, Volvo has higher selling prices.
+
+-   However, the number of cars are greatly different among these brands. For model construction, we may merge brands into two levels : \[luxury, economical\] by the median selling price of each brand. According to the plot, we use 1250000 as the threshold
+
+```{r}
+car_df_brand |> 
+  select(brand, selling_price) |>
+  group_by(brand) |>
+  summarise(median_price = median(selling_price)) |>
+  filter(median_price > 1250000)
+```
+
+The above brands is considered "luxury"; the rest is considered "economical"
+
+```{r}
+# New dataset with brand_level
+car_df2 <- car_df_brand %>% 
+  mutate(brand_level = if_else(brand  %in% c("Audi", "BMW", "Isuzu",
+                             "Jaguar", "Jeep", "Kia",
+                             "Land", "MG", "Mercedes-Benz",
+                             "Volvo"),
+                             "luxury", "economical"))
+```
+
+```{r}
+# Box plot for selling price by brand level
+ggplot(car_df2, aes(x = brand_level, y = selling_price, fill = brand_level)) +
+  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Box Plot of Selling Price by brand level", 
+       x = "brand level", 
+       y = "Selling Price (in currency units)") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+```{r}
+# Box plot for selling price by fuel type
+ggplot(car_df, aes(x = fuel, y = selling_price, fill = fuel)) +
+  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Box Plot of Selling Price by Fuel Type", 
+       x = "Fuel Type", 
+       y = "Selling Price (in currency units)") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+-   Outliers seem to be making hard the interpretation for difference in selling price depending on the type of Fuel
+
+-   Diesel and Petrol seem to have most of the outliers but could be because of the size of the data for each type
+
+```{r message=FALSE, warning=FALSE}
+
+lower_bound <- quantile(car_df$selling_price, 0.05, na.rm = TRUE)  
+upper_bound <- quantile(car_df$selling_price, 0.95, na.rm = TRUE)  
+
+# Box plot for selling price by fuel type (without outliers)
+ggplot(car_df, aes(x = fuel, y = selling_price, fill = fuel)) +
+  geom_boxplot(outlier.shape = NA) +
+  labs(title = "Box Plot of Selling Price by Fuel Type (Without Outliers)", 
+       x = "Fuel Type", 
+       y = "Selling Price (in currency units)") +
+  scale_y_continuous(limits = c(lower_bound, upper_bound)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+-   Without outliers we can see better that there could potentially be a difference in the mean selling price depending on the fuel type
+
+-   Also, we can better understand the distribution of the selling price for each fuel type
+
+```{r}
+ggplot(car_df, aes(x = year, y = selling_price)) +
+  geom_point(alpha = 0.6, color = "blue") +
+  labs(title = "Scatter Plot of Selling Price vs. Year",
+       x = "Year",
+       y = "Selling Price (in currency units)") +
+  theme_minimal()
+```
+
+-   For year and selling price, even though we don't have a straight away linear regression, we can see that the overall values seem to increase as the year go buy, which is intuitive since older cars always tend to have lower prices.
+
+```{r}
+ggplot(car_df, aes(x = year, y = selling_price)) +
+  geom_point(aes(color = transmission), alpha = 0.6) +
+  labs(title = "Scatter Plot of Selling Price vs. Year by Transmission Type",
+       x = "Year",
+       y = "Selling Price (in currency units)",
+       color = "Transmission") +
+  facet_wrap(~ transmission) +  # Create separate plots for each transmission type
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+-   When we add the transmission variable to this plot, we can see that the analysis changes, since now we can see a more linear relationship for Manual cars, when as for Automatic there seems to be more variance and a potential higher slope
+
+```{r}
+num_vars <- car_df[sapply(car_df, is.numeric)]
+
+cor_matrix <- cor(num_vars)
+
+corrplot(cor_matrix, method = 'color', order = 'alphabet', tl.col = "black", tl.srt = 45)
+```
+
+-   The correlation matrix supports our hypothesis that newer cars (higher year value) tend to be more expensive. This is reflected in a positive correlation with selling price, though it is not as strong as expected.
+
+-   Kilometers driven have a negative correlation with selling price, meaning fewer kilometers result in higher prices. This aligns with the logic that a car with low mileage is closer to being new and therefore more valuable.
+
+-   The correlation between year and km_driven shows that newer cars are less likely to have high mileage, as older cars have been in use longer. This results in a significant negative correlation.
+
+-   This correlation between covariates may lead to multicollinearity, we need to consider this in statistical analysis.
 
 ## 3. Statistical Analysis
 
