@@ -41,6 +41,7 @@ First we'll run the necessary libraries for the visualizations
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(tidyverse)
 library(readr)
 library(corrplot)
 ```
@@ -275,7 +276,7 @@ num_vars <- car_df[sapply(car_df, is.numeric)]
 
 cor_matrix <- cor(num_vars)
 
-corrplot(cor_matrix, method = 'color', order = 'alphabet', tl.col = "black", tl.srt = 45)
+corrplot(cor_matrix, method = 'color', order = 'alphabet', tl.col = "black", tl.srt = 45, addCoef.col = "black")
 ```
 
 -   The correlation matrix supports our hypothesis that newer cars (higher year value) tend to be more expensive. This is reflected in a positive correlation with selling price, though it is not as strong as expected.
@@ -287,5 +288,75 @@ corrplot(cor_matrix, method = 'color', order = 'alphabet', tl.col = "black", tl.
 -   This correlation between covariates may lead to multicollinearity, we need to consider this in statistical analysis.
 
 ## 3. Statistical Analysis
+
+### Additive model
+
+First we explore the performance of additive model
+
+#### Multicollinearity
+
+We use VIF (variance inflation factor) to check multicollinearity between covariates
+
+```{r}
+car_df2[c("fuel", "transmission", "owner", "seller_type", "brand_level")] <- map_dfc(car_df2[c("fuel", "transmission", "owner", "seller_type", "brand_level")],factor)
+covariates_df = select(car_df2, -brand, -selling_price)
+```
+
+```{r}
+year_reg = lm(data = covariates_df, year~.)
+VIF_year = 1 / (1-summary(year_reg)$r.squared)
+print(paste("VIF(year):", round(VIF_year,3)))
+
+km_driven_reg = lm(data = covariates_df, km_driven~.)
+VIF_km_driven = 1 / (1-summary(km_driven_reg)$r.squared)
+print(paste("VIF(km_driven):", round(VIF_km_driven,3)))
+```
+
+By rule of thumb, VIFs of continuous variables are less than 10, so there is no multicollinearity issues.
+
+### Model with interaction
+
+#### Explore the model
+
+To simplify the model selections, we only include the interactions between continuous covariates.
+
+```{r}
+#full model
+full_model <- lm(data = car_df2, selling_price ~ km_driven * year 
+                 + fuel + seller_type + transmission + owner + brand_level )
+summary(full_model)
+```
+
+-   Continuous covariates and their interaction are significantly affect the selling price
+
+-   For fuel type, only diesel car is significantly different from the baseline (CNG), we may merge the rest of fuel types into "non_diesel"
+
+-   For seller type, only Trustmark dealer is significantly different from the baseline (dealer), we may merge the rest into "non_trustmark_dealer "
+
+-   there is a significant difference in the coefficient of transmission
+
+-   there is a significant difference in the coefficient of brand level
+
+-   For owners, only the coefficient of "Second Owner" show a significance. This is slightly counterintuitive, maybe the number of owners is highly related with driven distance and year.
+
+```{r}
+ggplot(car_df2, aes(x = owner, y = km_driven, fill = owner)) +
+  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Box Plot of kilometers driven by owners", 
+       x = "Owner", 
+       y = "kilometers driven (in km)") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+ggplot(car_df2, aes(x = owner, y = year, fill = owner)) +
+  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
+  labs(title = "Box Plot of year by owners", 
+       x = "Owner", 
+       y = "year") +
+  theme_minimal() +
+  theme(legend.position = "none") 
+```
+
+Cars with less owners tend to be newer and have less driven distance. Based on this, we may drop the owner variable for now.
 
 ## 4. Discussion
