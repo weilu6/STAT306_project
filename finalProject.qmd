@@ -6,7 +6,7 @@
 
 Nowadays, as technological advancements revolutionize industries, digital car trading platforms have emerged as vital marketplaces, transforming the automotive market and the way people buy and sell second-hand vehicles. Notably, CarDekho.com is a well-known car trading platform based in India. The primary motivation for this analysis stems from the growing importance of platforms like CarDekho.com in connecting buyers and sellers. In particular, for buyers, understanding the relationship between car traits and pricing can facilitate purchasing decisions, and help assess whether a car is priced fairly. Meanwhile, for sellers, the insights into pricing trends can help attract more potential customers while still setting competitive selling prices, determining the optimal price for their listings. Thus, this study aims to investigate a deeper understanding of these relationships by addressing the following research questions:
 
--   Is there a linear relationship between the selling price and the kilometers driven by the car?
+-   What are the relationships between the selling price and continuous covariates (year, km_driven)?
 
 -   What categorical variables are associated with the selling price, and how do these variables influence pricing?
 
@@ -20,16 +20,25 @@ The dataset analyzed in this report contains information about second-hand cars 
 
 The following is a description of the variables found in the dataset:
 
++---------------+-------------+-------------------------------------------------------------------------+
 | Variables     | Type        | Descriptions                                                            |
-|-----------------------|--------------------|-----------------------------|
++===============+=============+=========================================================================+
 | name          | categorical | the name of the car; start with brand name which is a possible factor   |
++---------------+-------------+-------------------------------------------------------------------------+
 | year          | continuous  | the year of the car when it was bought (in years)                       |
++---------------+-------------+-------------------------------------------------------------------------+
 | selling_price | continuous  | the price of car when it was sold (in Indian Rupee (INR))               |
++---------------+-------------+-------------------------------------------------------------------------+
 | km_driven     | continuous  | the distance that the car is driven (in kilometers)                     |
++---------------+-------------+-------------------------------------------------------------------------+
 | fuel          | categorical | the fuel type of the car; 5 levels (CNG/Diesel/Electric/LPG/Petrol)     |
++---------------+-------------+-------------------------------------------------------------------------+
 | seller_type   | categorical | the type of the seller; 3 levels (Dealer, Individual, Trustmark Dealer) |
++---------------+-------------+-------------------------------------------------------------------------+
 | transmission  | categorical | the type of gear transmission; 2 levels (Manual, Automatic)             |
++---------------+-------------+-------------------------------------------------------------------------+
 | owner         | categorical | the number of previous owners; 5 levels                                 |
++---------------+-------------+-------------------------------------------------------------------------+
 
 By setting selling_price as our response, we have a total of 5 categorical variables and 2 continuous variables.
 
@@ -289,11 +298,9 @@ corrplot(cor_matrix, method = 'color', order = 'alphabet', tl.col = "black", tl.
 
 ## 3. Statistical Analysis
 
-### Additive model
+### (a) Multicollinearity
 
 First we explore the performance of additive model
-
-#### Multicollinearity
 
 We use VIF (variance inflation factor) to check multicollinearity between covariates
 
@@ -314,20 +321,20 @@ print(paste("VIF(km_driven):", round(VIF_km_driven,3)))
 
 By rule of thumb, VIFs of continuous variables are less than 10, so there is no multicollinearity issues.
 
-### Model with interaction
+### (b) Model with interaction between continuous variables
 
-#### Explore the model
+#### (i) Explore the additive model
 
 To simplify the model selections, we only include the interactions between continuous covariates.
 
 ```{r}
 #full model
-full_model <- lm(data = car_df2, selling_price ~ km_driven * year 
+model1 <- lm(data = car_df2, selling_price ~ km_driven * year 
                  + fuel + seller_type + transmission + owner + brand_level )
-summary(full_model)
+summary(model1)
 ```
 
--   Continuous covariates and their interaction are significantly affect the selling price
+-   Continuous covariates and their interaction are significantly affect the selling price (Research Question 1)
 
 -   For fuel type, only diesel car is significantly different from the baseline (CNG), we may merge the rest of fuel types into "non_diesel"
 
@@ -337,26 +344,277 @@ summary(full_model)
 
 -   there is a significant difference in the coefficient of brand level
 
--   For owners, only the coefficient of "Second Owner" show a significance. This is slightly counterintuitive, maybe the number of owners is highly related with driven distance and year.
+-   For owners, only the coefficient of "Second Owner" show a significance. May merge the other levels
+
+#### (ii) Diagnostic Diagrams
 
 ```{r}
-ggplot(car_df2, aes(x = owner, y = km_driven, fill = owner)) +
-  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
-  labs(title = "Box Plot of kilometers driven by owners", 
-       x = "Owner", 
-       y = "kilometers driven (in km)") +
-  theme_minimal() +
-  theme(legend.position = "none") 
-
-ggplot(car_df2, aes(x = owner, y = year, fill = owner)) +
-  geom_boxplot(outlier.shape = 16, outlier.size = 2) +
-  labs(title = "Box Plot of year by owners", 
-       x = "Owner", 
-       y = "year") +
-  theme_minimal() +
-  theme(legend.position = "none") 
+# residuals plot
+plot(x=model1$fitted.values, y=model1$residuals)
 ```
 
-Cars with less owners tend to be newer and have less driven distance. Based on this, we may drop the owner variable for now.
+-   Obvious "fan" shape, violating the assumption of constant variance
+
+-   transformation is needed
+
+```{r}
+# Q-Q plot
+qqnorm(model1$residuals, pch = 1)
+qqline(model1$residuals, col = "steelblue", lwd = 2)
+```
+
+-   Data points deviate the Q-Q line, suggesting heavy tail distribution of residuals
+
+-   The assumption of normality may be violated
+
+### (c) Log transformation on response
+
+#### (i) fit model with log-transformed response
+
+```{r}
+# log transformation on selling_price
+log_price = log(car_df2$selling_price)
+
+# fit the same model
+log_model =  lm(data = car_df2, log_price ~ km_driven * year 
+                 + fuel + seller_type + transmission + owner + brand_level )
+summary(log_model)
+
+# residual and QQ plot
+
+plot(x=log_model$fitted.values, y=log_model$residuals)
+qqnorm(log_model$residuals, pch = 1)
+qqline(log_model$residuals, col = "steelblue", lwd = 2)
+```
+
+Comments:
+
+Compared with previous model,
+
+-   More coefficients of owner are significant
+
+-   All coefficients of seller_type are significant
+
+-   Only levels of fuel may be merged
+
+-   R-squared increases from 0.6288 to 0.7252, more variation in selling price is explained
+
+-   In the residuals plot, there is no more obvious patterns
+
+-   In the Q-Q plot, there are still data points deviating the Q-Q line but less extreme. Although there are still concerns about the normality of the error term, we may assume it is approximately normal with slight heavier tails. For better interpretation (Research Question 3), we only use log transformation.
+
+#### (ii) merge the levels in fuel
+
+```{r}
+# create the data set with log_selling_price
+# merge levels of fuel, "Diesel", "Non-Diesel" to simplify further model selection
+car_df2 <- mutate(car_df2, fuel = if_else(fuel == "Diesel","Diesel","Non-diesel"))
+car_df2$fuel <- relevel(factor(car_df2$fuel), ref = "Non-diesel")
+car <- car_df2[c("year","km_driven","seller_type","transmission","owner","brand_level","fuel")]
+car["log_price"] = log_price
+# summary(car)
+# new data frame, "car"
+```
+
+### (d) Model Selection
+
+The effective interpretation of model is one of our research goals. So far, the log-transformed model is a better fit than the previous model. Since there are categorical covariates with multiple levels, it is difficult to determine which interactions should be included. For the principle of parsimony, let $\alpha_c = 0.05$, we perform the following stepwise selection method:
+
+-   To keep the model simple, we only consider the interaction between one categorical and one continuous variable.
+
+-   Start with the previous log model
+
+-   add one interaction term and fit a new model
+
+-   if the coefficients of some interactions are significant with corresponding categorical variable still significant, we keep the interaction; otherwise, remove the interaction for parsimony.
+
+-   iterate the procedure
+
+#### (i) Interaction Term Selection
+
+```{r}
+log_model <- lm(data = car, car$log_price ~ km_driven * year 
+                 + fuel
+                 + seller_type
+                 + transmission
+                 + owner
+                 + brand_level)
+summary(log_model)
+
+```
+
+```{r}
+# model1 = lm(data = car, car$log_price ~ km_driven * year 
+#                  + fuel + fuel:km_driven
+#                  + seller_type
+#                  + transmission
+#                  + owner
+#                  + brand_level)
+# summary(model1)
+# model2 = lm(data = car, car$log_price ~ km_driven * year 
+#                  + fuel + fuel:year
+#                  + seller_type
+#                  + transmission
+#                  + owner
+#                  + brand_level)
+# summary(model2)
+# model3 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type + seller_type:km_driven
+#                  + transmission
+#                  + owner
+#                  + brand_level)
+# summary(model3)
+# model4 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type + seller_type:year
+#                  + transmission
+#                  + owner
+#                  + brand_level)
+# summary(model4)
+
+# model5 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type 
+#                  + transmission + transmission:km_driven
+#                  + owner
+#                  + brand_level)
+# summary(model5)
+# model6 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type 
+#                  + transmission + transmission:year
+#                  + owner
+#                  + brand_level)
+# summary(model6)
+# model7 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type
+#                  + transmission
+#                  + owner + owner:km_driven
+#                  + brand_level)
+# summary(model7)
+
+# model8 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type 
+#                  + transmission
+#                  + owner + owner:km_driven + owner:year
+#                  + brand_level)
+# summary(model8)
+
+# model9 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type
+#                  + transmission
+#                  + owner + owner:km_driven + owner:year
+#                  + brand_level + brand_level:km_driven)
+# summary(model9)
+model10 = lm(data = car, car$log_price ~ km_driven * year
+                 + fuel + fuel:year
+                 + seller_type
+                 + transmission
+                 + owner + owner:km_driven + owner:year
+                 + brand_level + brand_level:year)
+summary(model10)
+```
+
++-------------+------------------------+-----------------------------------+-------------+
+| Model       | Interaction term       | p value                           | add or not  |
++=============+========================+===================================+=============+
+| 1           | fuel:km_driven         | 0.893                             | no          |
++-------------+------------------------+-----------------------------------+-------------+
+| 2           | fuel:year              | 1.66e-11                          | yes         |
++-------------+------------------------+-----------------------------------+-------------+
+| 3           | seller_type:km_driven  | 0.254 for Individual;             | no          |
+|             |                        |                                   |             |
+|             |                        | 0.416 for Trustmark Dealer        |             |
++-------------+------------------------+-----------------------------------+-------------+
+| 4           | seller_type:year       | 0.791 for Individual              | no          |
+|             |                        |                                   |             |
+|             |                        | 0.211 for Trustmark Dealer        |             |
++-------------+------------------------+-----------------------------------+-------------+
+| 5           | transmission:km_driven | 0.177                             | no          |
++-------------+------------------------+-----------------------------------+-------------+
+| 6           | transmission:year      | 0.090                             | no          |
++-------------+------------------------+-----------------------------------+-------------+
+| 7           | owner:km_driven        | 0.060 for Fourth & Above Owner    | yes         |
+|             |                        |                                   |             |
+|             |                        | 0.001 for Second Owner            |             |
+|             |                        |                                   |             |
+|             |                        | 0.829 for Test Drive Car          |             |
+|             |                        |                                   |             |
+|             |                        | 0.022 for Third Owner             |             |
++-------------+------------------------+-----------------------------------+-------------+
+| 8           | owner:year             | 8.77e-06 for Fourth & Above Owner | yes         |
+|             |                        |                                   |             |
+|             |                        | 0.058 for Second Owner            |             |
+|             |                        |                                   |             |
+|             |                        | 0.288 for Test Drive Car          |             |
+|             |                        |                                   |             |
+|             |                        | 0.037 for Third Owner             |             |
++-------------+------------------------+-----------------------------------+-------------+
+| 9           | brand_level:km_driven  | 0.570                             | no          |
++-------------+------------------------+-----------------------------------+-------------+
+| 10          | brand_level:year       | 0.0005                            | yes         |
++-------------+------------------------+-----------------------------------+-------------+
+
+```{r}
+# anova compare R2
+anova(model1, model10)
+```
+
+-   R-square is significantly increased
+
+#### (ii) Mallow's Cp statistic
+
+calculate the Mallow's Cp statistic for both model
+
+```{r}
+# add all interaction to create the "full model"
+full = lm(data = car, car$log_price ~ km_driven * year
+                 + fuel + fuel:year + fuel:km_driven
+                 + seller_type + seller_type:year + seller_type:km_driven
+                 + transmission + transmission:year + transmission:km_driven
+                 + owner + owner:km_driven + owner:year
+                 + brand_level + brand_level:year + + brand_level:km_driven)
+q = length(coef(full)) - 1
+MSR_q = t(full$residuals) %*% full$residuals/(nrow(car) - (q+1))
+Cp_full = (t(full$residuals) %*% full$residuals)/MSR_q - (nrow(car)- 2*(q+1))
+c(Cp_full)
+
+# original log model
+p_log = length(coef(log_model)) - 1
+SS_log = t(log_model$residuals) %*% log_model$residuals
+Cp_log = SS_log/MSR_q - (nrow(car)- 2*(p_log+1))
+(p_log + 1)
+c(Cp_log)
+
+# new found model
+p_10 = length(coef(model10)) - 1
+SS_10 = t(model10$residuals) %*% model10$residuals
+Cp_10 = SS_10/MSR_q - (nrow(car)- 2*(p_10+1))
+(p_10+1)
+c(Cp_10)
+```
+
+In terms of Cp, the new found model is better, but still larger than expected.
+
+#### (iii) Final model
+
+```{r}
+# diagonostic
+plot(x=model10$fitted.values, y=model10$residuals)
+qqnorm(model10$residuals, pch = 1)
+qqline(model10$residuals, col = "steelblue", lwd = 2)
+```
+
+```{r}
+#outlier
+res = model10$residuals
+sigma = summary(model10)$sigma
+
+# TODO
+```
 
 ## 4. Discussion
