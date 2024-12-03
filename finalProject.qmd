@@ -20,25 +20,16 @@ The dataset analyzed in this report contains information about second-hand cars 
 
 The following is a description of the variables found in the dataset:
 
-+---------------+-------------+-------------------------------------------------------------------------+
 | Variables     | Type        | Descriptions                                                            |
-+===============+=============+=========================================================================+
+|-----------------|-----------------|--------------------------------------|
 | name          | categorical | the name of the car; start with brand name which is a possible factor   |
-+---------------+-------------+-------------------------------------------------------------------------+
 | year          | continuous  | the year of the car when it was bought (in years)                       |
-+---------------+-------------+-------------------------------------------------------------------------+
 | selling_price | continuous  | the price of car when it was sold (in Indian Rupee (INR))               |
-+---------------+-------------+-------------------------------------------------------------------------+
 | km_driven     | continuous  | the distance that the car is driven (in kilometers)                     |
-+---------------+-------------+-------------------------------------------------------------------------+
 | fuel          | categorical | the fuel type of the car; 5 levels (CNG/Diesel/Electric/LPG/Petrol)     |
-+---------------+-------------+-------------------------------------------------------------------------+
 | seller_type   | categorical | the type of the seller; 3 levels (Dealer, Individual, Trustmark Dealer) |
-+---------------+-------------+-------------------------------------------------------------------------+
 | transmission  | categorical | the type of gear transmission; 2 levels (Manual, Automatic)             |
-+---------------+-------------+-------------------------------------------------------------------------+
 | owner         | categorical | the number of previous owners; 5 levels                                 |
-+---------------+-------------+-------------------------------------------------------------------------+
 
 By setting selling_price as our response, we have a total of 5 categorical variables and 2 continuous variables.
 
@@ -325,20 +316,27 @@ By rule of thumb, VIFs of continuous variables are less than 10, so there is no 
 
 #### (i) Explore the additive model
 
-To simplify the model selections, we only include the interactions between continuous covariates.
+We compare the model without interaction of continuous covariates and with interaction
 
 ```{r}
-#full model
-model1 <- lm(data = car_df2, selling_price ~ km_driven * year 
+#model without continuous interaction, pure additive
+mod_add <- lm(data = car_df2, selling_price ~ km_driven + year 
                  + fuel + seller_type + transmission + owner + brand_level )
-summary(model1)
+summary(mod_add)
+```
+
+```{r}
+#model with continuous interaction
+mod_inter <- lm(data = car_df2, selling_price ~ km_driven * year 
+                 + fuel + seller_type + transmission + owner + brand_level )
+summary(mod_inter)
 ```
 
 -   Continuous covariates and their interaction are significantly affect the selling price (Research Question 1)
 
 -   For fuel type, only diesel car is significantly different from the baseline (CNG), we may merge the rest of fuel types into "non_diesel"
 
--   For seller type, only Trustmark dealer is significantly different from the baseline (dealer), we may merge the rest into "non_trustmark_dealer "
+-   For seller type, only Trustmark dealer is significantly different from the baseline (dealer)
 
 -   there is a significant difference in the coefficient of transmission
 
@@ -350,7 +348,7 @@ summary(model1)
 
 ```{r}
 # residuals plot
-plot(x=model1$fitted.values, y=model1$residuals)
+plot(x=mod_inter$fitted.values, y=mod_inter$residuals)
 ```
 
 -   Obvious "fan" shape, violating the assumption of constant variance
@@ -359,8 +357,8 @@ plot(x=model1$fitted.values, y=model1$residuals)
 
 ```{r}
 # Q-Q plot
-qqnorm(model1$residuals, pch = 1)
-qqline(model1$residuals, col = "steelblue", lwd = 2)
+qqnorm(mod_inter$residuals, pch = 1)
+qqline(mod_inter$residuals, col = "steelblue", lwd = 2)
 ```
 
 -   Data points deviate the Q-Q line, suggesting heavy tail distribution of residuals
@@ -416,42 +414,97 @@ car["log_price"] = log_price
 # new data frame, "car"
 ```
 
-### (d) Model Selection
+```{r}
+log_model_merge =  lm(data = car_df2, log_price ~ km_driven * year 
+                 + fuel + seller_type + transmission + owner + brand_level )
+summary(log_model_merge)
+```
 
-The effective interpretation of model is one of our research goals. So far, the log-transformed model is a better fit than the previous model. Since there are categorical covariates with multiple levels, it is difficult to determine which interactions should be included. For the principle of parsimony, let $\alpha_c = 0.05$, we perform the following stepwise selection method:
+Comment:
 
--   To keep the model simple, we only consider the interaction between one categorical and one continuous variable.
+-   All coefficients but the coefficient for Test Drive Car are significant
 
--   Start with the previous log model
+-   it's unnecessary to use model selection procedure to remove covariates (since all significant)
+
+### (d) Interaction Selection
+
+The effective interpretation of model is one of our research goals. So far, the log-transformed model is a better fit than the previous model. Since there are categorical covariates with multiple levels, it is difficult to determine which interactions should be included. For the principle of parsimony, let $\alpha_c = 0.05$, we perform the following backward selection method:
+
+-   To keep the model simple, we only consider the interaction between one categorical and one continuous variable. To be specific, we are only interested in the interaction:
+
+    -   *year:owner* to see whether the expected selling price change differently as the year of car bought change, depending on different number of previous owners.
+
+    -   *km_driven:owner* to see whether the expected selling price change differently as the kilometers driven change, depending on different number of previous owners.
+
+    -   *year:transmission* to see whether the expected selling price change differently as the year of car bought change, depending on different type of transmission.
+
+    -   *km_driven:transmission* to see whether the expected selling price change differently as the kilometers driven change, depending on different type of transmission.
+
+    -   *km_driven:year* The interaction continuous term is also included
+
+-   Start with the full model (with all mentioned four interactions)
 
 -   add one interaction term and fit a new model
 
--   if the coefficients of some interactions are significant with corresponding categorical variable still significant, we keep the interaction; otherwise, remove the interaction for parsimony.
+-   If the lowest p-value among levels of categorical covariates greater than $\alpha_c (0.05)$, we remove that interaction item
 
--   iterate the procedure
+-   iterate the procedure until the end.
 
-#### (i) Interaction Term Selection
+#### (i) Selection Procedure
 
 ```{r}
-log_model <- lm(data = car, car$log_price ~ km_driven * year 
+full_model <- lm(data = car, car$log_price ~ km_driven * year 
+                 + fuel
+                 + seller_type
+                 + transmission + transmission:km_driven + transmission:year
+                 + owner + owner:km_driven + owner:year
+                 + brand_level)
+# summary(full_model)
+
+model_i2 <- lm(data = car, car$log_price ~ km_driven * year
+                 + fuel
+                 + seller_type
+                 + transmission + transmission:year
+                 + owner + owner:km_driven + owner:year
+                 + brand_level)
+# summary(model_i2)
+# 
+model_i3 <- lm(data = car, car$log_price ~ km_driven + year
+                 + fuel
+                 + seller_type
+                 + transmission + transmission:year
+                 + owner + owner:km_driven + owner:year
+                 + brand_level)
+# summary(model_i3)
+
+model_i4 <- lm(data = car, car$log_price ~ km_driven + year
                  + fuel
                  + seller_type
                  + transmission
-                 + owner
+                 + owner + owner:km_driven + owner:year
                  + brand_level)
-summary(log_model)
-
+summary(model_i4)
 ```
 
+| iteration | remove term              | p-value |
+|-----------|--------------------------|---------|
+| 1         | *km_driven:transmission* | 0.665   |
+| 2         | *km_driven:year*         | 0.436   |
+| 3         | *year:transmission*      | 0.149   |
+
 ```{r}
-# model1 = lm(data = car, car$log_price ~ km_driven * year 
+###
+# Skip this part, it's NOT used anymore!
+
+###
+# model1 = lm(data = car, car$log_price ~ km_driven * year
 #                  + fuel + fuel:km_driven
 #                  + seller_type
 #                  + transmission
 #                  + owner
 #                  + brand_level)
 # summary(model1)
-# model2 = lm(data = car, car$log_price ~ km_driven * year 
+# model2 = lm(data = car, car$log_price ~ km_driven * year
 #                  + fuel + fuel:year
 #                  + seller_type
 #                  + transmission
@@ -475,14 +528,14 @@ summary(log_model)
 
 # model5 = lm(data = car, car$log_price ~ km_driven * year
 #                  + fuel + fuel:year
-#                  + seller_type 
+#                  + seller_type
 #                  + transmission + transmission:km_driven
 #                  + owner
 #                  + brand_level)
 # summary(model5)
 # model6 = lm(data = car, car$log_price ~ km_driven * year
 #                  + fuel + fuel:year
-#                  + seller_type 
+#                  + seller_type
 #                  + transmission + transmission:year
 #                  + owner
 #                  + brand_level)
@@ -497,7 +550,7 @@ summary(log_model)
 
 # model8 = lm(data = car, car$log_price ~ km_driven * year
 #                  + fuel + fuel:year
-#                  + seller_type 
+#                  + seller_type
 #                  + transmission
 #                  + owner + owner:km_driven + owner:year
 #                  + brand_level)
@@ -510,111 +563,92 @@ summary(log_model)
 #                  + owner + owner:km_driven + owner:year
 #                  + brand_level + brand_level:km_driven)
 # summary(model9)
-model10 = lm(data = car, car$log_price ~ km_driven * year
-                 + fuel + fuel:year
-                 + seller_type
-                 + transmission
-                 + owner + owner:km_driven + owner:year
-                 + brand_level + brand_level:year)
-summary(model10)
+# model10 = lm(data = car, car$log_price ~ km_driven * year
+#                  + fuel + fuel:year
+#                  + seller_type
+#                  + transmission
+#                  + owner + owner:km_driven + owner:year
+#                  + brand_level + brand_level:year)
+# summary(model10)
 ```
 
-+-------------+------------------------+-----------------------------------+-------------+
-| Model       | Interaction term       | p value                           | add or not  |
-+=============+========================+===================================+=============+
-| 1           | fuel:km_driven         | 0.893                             | no          |
-+-------------+------------------------+-----------------------------------+-------------+
-| 2           | fuel:year              | 1.66e-11                          | yes         |
-+-------------+------------------------+-----------------------------------+-------------+
-| 3           | seller_type:km_driven  | 0.254 for Individual;             | no          |
-|             |                        |                                   |             |
-|             |                        | 0.416 for Trustmark Dealer        |             |
-+-------------+------------------------+-----------------------------------+-------------+
-| 4           | seller_type:year       | 0.791 for Individual              | no          |
-|             |                        |                                   |             |
-|             |                        | 0.211 for Trustmark Dealer        |             |
-+-------------+------------------------+-----------------------------------+-------------+
-| 5           | transmission:km_driven | 0.177                             | no          |
-+-------------+------------------------+-----------------------------------+-------------+
-| 6           | transmission:year      | 0.090                             | no          |
-+-------------+------------------------+-----------------------------------+-------------+
-| 7           | owner:km_driven        | 0.060 for Fourth & Above Owner    | yes         |
-|             |                        |                                   |             |
-|             |                        | 0.001 for Second Owner            |             |
-|             |                        |                                   |             |
-|             |                        | 0.829 for Test Drive Car          |             |
-|             |                        |                                   |             |
-|             |                        | 0.022 for Third Owner             |             |
-+-------------+------------------------+-----------------------------------+-------------+
-| 8           | owner:year             | 8.77e-06 for Fourth & Above Owner | yes         |
-|             |                        |                                   |             |
-|             |                        | 0.058 for Second Owner            |             |
-|             |                        |                                   |             |
-|             |                        | 0.288 for Test Drive Car          |             |
-|             |                        |                                   |             |
-|             |                        | 0.037 for Third Owner             |             |
-+-------------+------------------------+-----------------------------------+-------------+
-| 9           | brand_level:km_driven  | 0.570                             | no          |
-+-------------+------------------------+-----------------------------------+-------------+
-| 10          | brand_level:year       | 0.0005                            | yes         |
-+-------------+------------------------+-----------------------------------+-------------+
+Now, we have a model from part(c) with interaction of continuous covariates and a model from part (d) with interactions of categorical covariates. We want to see which model is a better fit.
 
-```{r}
-# anova compare R2
-anova(model1, model10)
-```
+### (e) Model Comparison
 
--   R-square is significantly increased
-
-#### (ii) Mallow's Cp statistic
+#### (i) Mallow's Cp statistic
 
 calculate the Mallow's Cp statistic for both model
 
 ```{r}
+# log_model_merge is the model fitted in (c) 
+# model_i4 is the model found in (d)
+# full_model is defineed in (d)
+
 # add all interaction to create the "full model"
-full = lm(data = car, car$log_price ~ km_driven * year
-                 + fuel + fuel:year + fuel:km_driven
-                 + seller_type + seller_type:year + seller_type:km_driven
-                 + transmission + transmission:year + transmission:km_driven
-                 + owner + owner:km_driven + owner:year
-                 + brand_level + brand_level:year + + brand_level:km_driven)
-q = length(coef(full)) - 1
-MSR_q = t(full$residuals) %*% full$residuals/(nrow(car) - (q+1))
-Cp_full = (t(full$residuals) %*% full$residuals)/MSR_q - (nrow(car)- 2*(q+1))
-c(Cp_full)
+q = length(coef(full_model)) - 1
+MSR_q = t(full_model$residuals) %*% full_model$residuals/(nrow(car) - (q+1))
+Cp_full = (t(full_model$residuals) %*% full_model$residuals)/MSR_q - (nrow(car)- 2*(q+1))
+# c(Cp_full)
 
-# original log model
-p_log = length(coef(log_model)) - 1
-SS_log = t(log_model$residuals) %*% log_model$residuals
+# log model in (c) with km_driven:year
+p_log = length(coef(log_model_merge)) - 1
+SS_log = t(log_model_merge$residuals) %*% log_model_merge$residuals
 Cp_log = SS_log/MSR_q - (nrow(car)- 2*(p_log+1))
-(p_log + 1)
-c(Cp_log)
+# (p_log + 1)
+# c(Cp_log)
 
-# new found model
-p_10 = length(coef(model10)) - 1
-SS_10 = t(model10$residuals) %*% model10$residuals
-Cp_10 = SS_10/MSR_q - (nrow(car)- 2*(p_10+1))
-(p_10+1)
-c(Cp_10)
+# new found model in (d)
+p_4 = length(coef(model_i4)) - 1
+SS_4 = t(model_i4$residuals) %*% model_i4$residuals
+Cp_4 = SS_4/MSR_q - (nrow(car)- 2*(p_4+1))
+# (p_4+1)
+# c(Cp_4)
+
+Cp_df = data.frame("Expected(p+1)" = c(p_log + 1, p_4+1), 
+                   "Cps" = c(c(Cp_log),c(Cp_4)),
+                    row.names = c("log","i4"))
+Cp_df
 ```
 
-In terms of Cp, the new found model is better, but still larger than expected.
+-   In terms of Cp, the new found model is better. The C statistic is more close to p+1.
 
-#### (iii) Final model
+#### (ii) R-squared and adjusted R-squared
 
 ```{r}
-# diagonostic
-plot(x=model10$fitted.values, y=model10$residuals)
-qqnorm(model10$residuals, pch = 1)
-qqline(model10$residuals, col = "steelblue", lwd = 2)
+log_sum <- summary(log_model_merge)
+i4_sum <- summary(model_i4)
+
+r_df <- data_frame("R-squared"=c(log_sum$r.squared,i4_sum$r.squared),
+                   "Adj R-squared"=c(log_sum$adj.r.squared,i4_sum$adj.r.squared),
+                   row.names=c("log","i4"))
+r_df
 ```
+
+-   New founded model is slightly better in explaining the variation in response
+
+#### (iii) Diagnostic diagram for the new found model
 
 ```{r}
-#outlier
-res = model10$residuals
-sigma = summary(model10)$sigma
-
-# TODO
+plot(x=model_i4$fitted.values, y=model_i4$residuals)
+qqnorm(model_i4$residuals, pch = 1)
+qqline(model_i4$residuals, col = "steelblue", lwd = 2)
 ```
+
+-   Still, no strong violations
+
+#### (iv) Finalize model
+
+Comment: In terms of R-squared and Cp statistic, the new found model is a better fit. Also, it is easier to explain the interaction between categorical covariate and continuous covariate compared to the interaction between two continuous covariates. Hence, we choose the new found model to discuss.
 
 ## 4. Discussion
+
+-   Answer Research Question 1,2,3
+
+-   Describe the new found model
+
+-   we made extra assumption of normal distribution of error term
+
+-   limitation: the outliers are hard to handle, though we use log transformation to reduce the effects
+
+-   etc.
