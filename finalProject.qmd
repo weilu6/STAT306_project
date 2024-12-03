@@ -165,6 +165,8 @@ ggplot(car_df, aes(x = owner, y = selling_price, fill = owner)) +
 
 -   we still observe that cars with less previous owners have higher selling prices.
 
+### - Create new variable brand level
+
 ```{r}
 # Box plot for selling price by brand
 ggplot(car_df_brand, aes(x = brand, y = selling_price, fill = brand)) +
