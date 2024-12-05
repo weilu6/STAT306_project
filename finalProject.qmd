@@ -607,9 +607,9 @@ Cp_4 = SS_4/MSR_q - (nrow(car)- 2*(p_4+1))
 # (p_4+1)
 # c(Cp_4)
 
-Cp_df = data.frame("Expected(p+1)" = c(p_log + 1, p_4+1), 
-                   "Cps" = c(c(Cp_log),c(Cp_4)),
-                    row.names = c("log","i4"))
+Cp_df = data.frame("Expected(p+1)" = c(q + 1,p_log + 1, p_4+1), 
+                   "Cps" = c(c(Cp_full),c(Cp_log),c(Cp_4)),
+                    row.names = c('full',"log","cat"))
 Cp_df
 ```
 
@@ -617,13 +617,15 @@ Cp_df
 
 #### (ii) R-squared and adjusted R-squared
 
+
 ```{r}
+full_sum <- summary(full_model)
 log_sum <- summary(log_model_merge)
 i4_sum <- summary(model_i4)
 
-r_df <- data_frame("R-squared"=c(log_sum$r.squared,i4_sum$r.squared),
-                   "Adj R-squared"=c(log_sum$adj.r.squared,i4_sum$adj.r.squared),
-                   row.names=c("log","i4"))
+r_df <- data_frame("R-squared"=c(full_sum$r.squared, log_sum$r.squared,i4_sum$r.squared),
+                   "Adj R-squared"=c(full_sum$adj.r.squared, log_sum$adj.r.squared,i4_sum$adj.r.squared),
+                   row.names=c('full',"log","i4"))
 r_df
 ```
 
